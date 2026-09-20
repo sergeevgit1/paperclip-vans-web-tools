@@ -42,9 +42,17 @@ export type WebFetchRequest = {
 export type WebFetchResponse = {
   provider: string;
   url: string;
-  title?: string;
-  format?: string;
-  content: string;
+  title?: string | null;
+  content: {
+    format?: string;
+    text: string;
+    length?: number;
+  };
+  metadata?: {
+    author?: string | null;
+    published_at?: string | null;
+    language?: string | null;
+  };
 };
 
 export class VansRouterClient {

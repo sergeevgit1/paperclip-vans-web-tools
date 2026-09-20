@@ -70,7 +70,7 @@ describe("VansRouterClient", () => {
         url: "https://example.com/",
         title: "Example",
         format: "markdown",
-        content: "# Example Domain",
+        content: { format: "markdown", text: "# Example Domain", length: 16 },
       }));
     };
 
@@ -87,7 +87,8 @@ describe("VansRouterClient", () => {
     });
 
     expect(response.title).toBe("Example");
-    expect(response.content).toBe("# Example Domain");
+    expect(response.content.text).toBe("# Example Domain");
+    expect(response.content.format).toBe("markdown");
     expect(receivedRequests[0]?.url).toBe("/v1/web/fetch");
   });
 
