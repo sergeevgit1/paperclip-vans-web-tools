@@ -100,9 +100,8 @@ export class VansRouterClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
-    let response: Response;
     try {
-      response = await this.fetcher(url, {
+      const response = await this.fetcher(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -111,29 +110,32 @@ export class VansRouterClient {
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
+
+      const bodyText = await this.readBoundedText(response, controller.signal);
+
+      if (!response.ok) {
+        this.handleHttpError(response.status, bodyText);
+      }
+
+      try {
+        return JSON.parse(bodyText) as T;
+      } catch {
+        throw new Error("Invalid upstream JSON response");
+      }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error("Upstream request timed out");
       }
-      throw new Error(`Upstream connection failed: ${this.sanitizeMessage(error)}`);
+      if (error instanceof Error && (error.message.includes("timed out") || error.message.includes("aborted"))) {
+        throw new Error("Upstream request timed out");
+      }
+      throw error;
     } finally {
       clearTimeout(timeout);
     }
-
-    const bodyText = await this.readBoundedText(response);
-
-    if (!response.ok) {
-      this.handleHttpError(response.status, bodyText);
-    }
-
-    try {
-      return JSON.parse(bodyText) as T;
-    } catch {
-      throw new Error("Invalid upstream JSON response");
-    }
   }
 
-  private async readBoundedText(response: Response): Promise<string> {
+  private async readBoundedText(response: Response, signal?: AbortSignal): Promise<string> {
     const reader = response.body?.getReader();
     if (!reader) {
       const text = await response.text();
@@ -144,24 +146,49 @@ export class VansRouterClient {
     }
 
     let receivedBytes = 0;
-    const chunks: Uint8Array[] = [];
     const decoder = new TextDecoder("utf-8");
     let accumulated = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        receivedBytes += value.byteLength;
-        if (receivedBytes > this.maxResponseBytes) {
-          try { await reader.cancel(); } catch { /* ignore */ }
-          throw new Error("Upstream response too large");
-        }
-        accumulated += decoder.decode(value, { stream: true });
+    const onAbort = () => {
+      try {
+        reader.cancel().catch(() => {});
+      } catch {
+        /* ignore */
       }
+    };
+    if (signal) {
+      if (signal.aborted) throw new Error("Upstream request timed out");
+      signal.addEventListener("abort", onAbort, { once: true });
     }
-    accumulated += decoder.decode();
-    return accumulated;
+
+    try {
+      while (true) {
+        let readResult: ReadableStreamReadResult<Uint8Array>;
+        try {
+          readResult = await reader.read();
+        } catch (readError) {
+          if (signal?.aborted) {
+            throw new Error("Upstream request timed out");
+          }
+          throw readError;
+        }
+
+        const { done, value } = readResult;
+        if (done) break;
+        if (value) {
+          receivedBytes += value.byteLength;
+          if (receivedBytes > this.maxResponseBytes) {
+            try { reader.cancel().catch(() => {}); } catch { /* ignore */ }
+            throw new Error("Upstream response too large");
+          }
+          accumulated += decoder.decode(value, { stream: true });
+        }
+      }
+      accumulated += decoder.decode();
+      return accumulated;
+    } finally {
+      if (signal) signal.removeEventListener("abort", onAbort);
+    }
   }
 
   private handleHttpError(status: number, bodyText: string): never {
