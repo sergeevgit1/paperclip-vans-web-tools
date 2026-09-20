@@ -4,6 +4,14 @@
   "type": "module",
   "private": true,
   "description": "Paperclip tools for web search and page fetch through VansRouter",
+  "homepage": "https://github.com/sergeevgit1/paperclip-vans-web-tools#readme",
+  "bugs": {
+    "url": "https://github.com/sergeevgit1/paperclip-vans-web-tools/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sergeevgit1/paperclip-vans-web-tools.git"
+  },
   "scripts": {
     "build": "node ./esbuild.config.mjs",
     "test": "vitest run --config ./vitest.config.ts",

@@ -45,7 +45,7 @@ describe("VansRouterClient", () => {
 
     const client = new VansRouterClient({
       baseUrl,
-      apiKey: "secret-token-12345",
+      apiKey: "test-mock-key",
       timeoutMs: 5000,
     });
 
@@ -58,7 +58,7 @@ describe("VansRouterClient", () => {
 
     expect(response.results).toHaveLength(1);
     expect(receivedRequests[0]?.url).toBe("/v1/search");
-    expect(receivedRequests[0]?.headers.authorization).toBe("Bearer secret-token-12345");
+    expect(receivedRequests[0]?.headers.authorization).toBe("Bearer test-mock-key");
     expect(receivedRequests[0]?.headers["content-type"]).toBe("application/json");
   });
 
@@ -76,7 +76,7 @@ describe("VansRouterClient", () => {
 
     const client = new VansRouterClient({
       baseUrl,
-      apiKey: "secret-token-12345",
+      apiKey: "test-mock-key",
       timeoutMs: 5000,
     });
 
@@ -95,19 +95,19 @@ describe("VansRouterClient", () => {
   it("redacts credentials and token from upstream errors", async () => {
     handler = (_req, res) => {
       res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Invalid token: secret-token-12345" }));
+      res.end(JSON.stringify({ error: "Invalid token: test-mock-key" }));
     };
 
     const client = new VansRouterClient({
       baseUrl,
-      apiKey: "secret-token-12345",
+      apiKey: "test-mock-key",
       timeoutMs: 5000,
     });
 
     await expect(client.search({ model: "searxng", query: "test" }))
       .rejects.toThrowError(/authentication failed/i);
     await expect(client.search({ model: "searxng", query: "test" }))
-      .rejects.not.toThrowError(/secret-token-12345/);
+      .rejects.not.toThrowError(/test-mock-key/);
   });
 
   it("protects against oversized upstream response bodies", async () => {
