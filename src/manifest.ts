@@ -6,11 +6,11 @@ import { DEFAULT_CONFIG } from "./types.js";
 const CONFIG_FIELDS = new Set(Object.keys(DEFAULT_CONFIG));
 const FETCH_PROVIDERS = ["scrapling", "jina-reader", "camofox"] as const;
 
-export function validatePluginConfig(config: unknown): { errors: string[]; warnings: string[] } {
+export function validatePluginConfig(config: unknown): { ok: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
   if (!config || typeof config !== "object" || Array.isArray(config)) {
-    return { errors: ["Config must be an object"], warnings };
+    return { ok: false, errors: ["Config must be an object"], warnings };
   }
   const value = config as Record<string, unknown>;
 
@@ -47,7 +47,7 @@ export function validatePluginConfig(config: unknown): { errors: string[]; warni
   validateDomainList(value.allowedDomains, "allowedDomains", errors);
   validateDomainList(value.blockedDomains, "blockedDomains", errors);
 
-  return { errors, warnings };
+  return { ok: errors.length === 0, errors, warnings };
 }
 
 function validateIntegerRange(value: unknown, min: number, max: number, field: string, errors: string[]): void {

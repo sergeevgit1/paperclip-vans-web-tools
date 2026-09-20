@@ -44,7 +44,7 @@ describe("plugin manifest", () => {
 describe("validatePluginConfig", () => {
   it("accepts a valid config and normalizes the base URL", () => {
     const result = validatePluginConfig({ ...validConfig, baseUrl: "http://vansrouter:20128/" });
-    expect(result).toEqual({ errors: [], warnings: [] });
+    expect(result).toEqual({ ok: true, errors: [], warnings: [] });
   });
 
   it.each([
