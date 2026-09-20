@@ -86,7 +86,6 @@ const manifest: PaperclipPluginManifestV1 = {
     "agent.tools.register",
     "http.outbound",
     "secrets.read-ref",
-    "instance.settings.register",
   ],
   entrypoints: {
     worker: "./dist/worker.js",
@@ -97,7 +96,12 @@ const manifest: PaperclipPluginManifestV1 = {
     required: Object.keys(DEFAULT_CONFIG),
     properties: {
       baseUrl: { type: "string", title: "VansRouter Base URL", default: DEFAULT_CONFIG.baseUrl },
-      apiKeyRef: { type: "string", title: "API key secret reference", default: DEFAULT_CONFIG.apiKeyRef },
+      apiKeyRef: {
+        type: "string",
+        title: "API key secret reference",
+        format: "secret-ref",
+        default: DEFAULT_CONFIG.apiKeyRef,
+      },
       searchProvider: { type: "string", title: "Search provider", enum: ["searxng"], default: DEFAULT_CONFIG.searchProvider },
       fetchProvider: { type: "string", title: "Fetch provider", enum: [...FETCH_PROVIDERS], default: DEFAULT_CONFIG.fetchProvider },
       timeoutMs: { type: "integer", title: "Request timeout, ms", minimum: 1_000, maximum: 60_000, default: DEFAULT_CONFIG.timeoutMs },

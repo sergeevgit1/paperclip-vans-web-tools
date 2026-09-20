@@ -24,7 +24,6 @@ describe("plugin manifest", () => {
         "agent.tools.register",
         "http.outbound",
         "secrets.read-ref",
-        "instance.settings.register",
       ],
     });
     expect(manifest.tools?.map((tool) => tool.name)).toEqual([
