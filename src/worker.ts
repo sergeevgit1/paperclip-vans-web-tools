@@ -5,8 +5,8 @@ import { executeWebSearch } from "./tools/search.js";
 import { DEFAULT_CONFIG, type PluginConfig } from "./types.js";
 import { VansRouterClient } from "./vans-client.js";
 
-async function resolveEffectiveConfig(ctx: PluginContext): Promise<PluginConfig> {
-  const raw = await ctx.config.get();
+async function resolveEffectiveConfig(ctx: PluginContext, companyId?: string): Promise<PluginConfig> {
+  const raw = await ctx.config.get(companyId);
   return {
     ...DEFAULT_CONFIG,
     ...(raw as Partial<PluginConfig>),
@@ -49,9 +49,9 @@ const plugin = definePlugin({
         description: searchDecl.description,
         parametersSchema: searchDecl.parametersSchema,
       },
-      async (params: unknown, _runCtx: ToolRunContext): Promise<ToolResult> => {
+      async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
         try {
-          const config = await resolveEffectiveConfig(ctx);
+          const config = await resolveEffectiveConfig(ctx, runCtx.companyId);
           const client = await createClientForRun(ctx, config);
           return await executeWebSearch(client, config, params);
         } catch (error) {
@@ -73,9 +73,9 @@ const plugin = definePlugin({
         description: fetchDecl.description,
         parametersSchema: fetchDecl.parametersSchema,
       },
-      async (params: unknown, _runCtx: ToolRunContext): Promise<ToolResult> => {
+      async (params: unknown, runCtx: ToolRunContext): Promise<ToolResult> => {
         try {
-          const config = await resolveEffectiveConfig(ctx);
+          const config = await resolveEffectiveConfig(ctx, runCtx.companyId);
           const client = await createClientForRun(ctx, config);
           return await executeWebFetch(client, config, params);
         } catch (error) {
