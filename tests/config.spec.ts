@@ -33,10 +33,25 @@ describe("plugin manifest", () => {
   });
 
   it("uses apiKeyRef and has no plaintext apiKey setting", () => {
-    const properties = manifest.instanceConfigSchema?.properties ?? {};
+    const properties = (manifest.instanceConfigSchema?.properties ?? {}) as Record<string, Record<string, unknown>>;
     expect(properties).toHaveProperty("apiKeyRef");
     expect(properties).not.toHaveProperty("apiKey");
+    expect(properties.apiKeyRef).toMatchObject({
+      format: "secret-ref",
+      oneOf: expect.arrayContaining([
+        expect.objectContaining({ type: "string" }),
+        expect.objectContaining({ type: "object" }),
+      ]),
+    });
     expect(manifest.instanceConfigSchema).toMatchObject({ additionalProperties: false });
+  });
+
+  it("accepts an object-shaped secret_ref binding", () => {
+    const result = validatePluginConfig({
+      ...validConfig,
+      apiKeyRef: { type: "secret_ref", secretId: "11111111-1111-4111-8111-111111111111", version: "latest" },
+    });
+    expect(result).toEqual({ ok: true, errors: [], warnings: [] });
   });
 });
 

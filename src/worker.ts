@@ -18,9 +18,9 @@ async function createClientForRun(ctx: PluginContext, config: PluginConfig): Pro
     throw new Error("Plugin configuration error: apiKeyRef is required");
   }
 
-  const resolvedKey = await ctx.secrets.resolve(config.apiKeyRef);
+  const resolvedKey = await ctx.secrets.resolve(config.apiKeyRef as unknown as string);
   if (!resolvedKey || typeof resolvedKey !== "string") {
-    throw new Error(`Failed to resolve secret reference "${config.apiKeyRef}"`);
+    throw new Error("Failed to resolve secret reference for VansRouter API key");
   }
 
   const fetcher = ctx.http ? (url: string, init?: RequestInit) => ctx.http.fetch(url, init) : fetch;

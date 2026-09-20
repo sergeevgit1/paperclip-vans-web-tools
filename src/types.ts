@@ -1,8 +1,14 @@
+export type SecretRefBinding = {
+  type: "secret_ref";
+  secretId: string;
+  version?: "latest" | number;
+};
+
 export type FetchProvider = "scrapling" | "jina-reader" | "camofox";
 
 export type PluginConfig = {
   baseUrl: string;
-  apiKeyRef: string;
+  apiKeyRef: string | SecretRefBinding;
   searchProvider: "searxng";
   fetchProvider: FetchProvider;
   timeoutMs: number;

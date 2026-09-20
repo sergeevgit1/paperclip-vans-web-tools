@@ -32,8 +32,14 @@ export function validatePluginConfig(config: unknown): { ok: boolean; errors: st
     }
   }
 
-  if (typeof value.apiKeyRef !== "string" || !value.apiKeyRef.trim()) {
-    errors.push("apiKeyRef is required");
+  if (typeof value.apiKeyRef === "string") {
+    if (!value.apiKeyRef.trim()) errors.push("apiKeyRef is required");
+  } else if (value.apiKeyRef && typeof value.apiKeyRef === "object" && !Array.isArray(value.apiKeyRef)) {
+    const ref = value.apiKeyRef as Record<string, unknown>;
+    if (ref.type !== "secret_ref") errors.push('apiKeyRef.type must be "secret_ref"');
+    if (typeof ref.secretId !== "string" || !ref.secretId.trim()) errors.push("apiKeyRef.secretId is required");
+  } else {
+    errors.push("apiKeyRef is required and must be a string or a secret_ref object");
   }
   if (value.searchProvider !== "searxng") errors.push("searchProvider must be searxng");
   if (!FETCH_PROVIDERS.includes(value.fetchProvider as typeof FETCH_PROVIDERS[number])) {
@@ -97,9 +103,21 @@ const manifest: PaperclipPluginManifestV1 = {
     properties: {
       baseUrl: { type: "string", title: "VansRouter Base URL", default: DEFAULT_CONFIG.baseUrl },
       apiKeyRef: {
-        type: "string",
         title: "API key secret reference",
         format: "secret-ref",
+        oneOf: [
+          { type: "string", minLength: 1 },
+          {
+            type: "object",
+            additionalProperties: false,
+            required: ["type", "secretId"],
+            properties: {
+              type: { type: "string", const: "secret_ref" },
+              secretId: { type: "string", minLength: 1 },
+              version: { oneOf: [{ type: "string", const: "latest" }, { type: "integer", minimum: 1 }] },
+            },
+          },
+        ],
         default: DEFAULT_CONFIG.apiKeyRef,
       },
       searchProvider: { type: "string", title: "Search provider", enum: ["searxng"], default: DEFAULT_CONFIG.searchProvider },
