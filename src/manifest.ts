@@ -4,7 +4,8 @@ import { validateDomainPattern } from "./security.js";
 import { DEFAULT_CONFIG } from "./types.js";
 
 const CONFIG_FIELDS = new Set(Object.keys(DEFAULT_CONFIG));
-const FETCH_PROVIDERS = ["scrapling", "jina-reader", "camofox"] as const;
+const SEARCH_PROVIDERS = ["searxng", "tavily"] as const;
+const FETCH_PROVIDERS = ["auto", "scrapling", "camofox", "jina-reader"] as const;
 
 export function validatePluginConfig(config: unknown): { ok: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
@@ -41,9 +42,35 @@ export function validatePluginConfig(config: unknown): { ok: boolean; errors: st
   } else {
     errors.push("apiKeyRef is required and must be a string or a secret_ref object");
   }
-  if (value.searchProvider !== "searxng") errors.push("searchProvider must be searxng");
+  if (!SEARCH_PROVIDERS.includes(value.searchProvider as typeof SEARCH_PROVIDERS[number])) {
+    errors.push("searchProvider must be one of: searxng, tavily");
+  }
   if (!FETCH_PROVIDERS.includes(value.fetchProvider as typeof FETCH_PROVIDERS[number])) {
-    errors.push("fetchProvider must be one of: scrapling, jina-reader, camofox");
+    errors.push("fetchProvider must be one of: auto, scrapling, camofox, jina-reader");
+  }
+
+  if (value.searchFallbackProviders !== undefined) {
+    if (!Array.isArray(value.searchFallbackProviders)) {
+      errors.push("searchFallbackProviders must be an array");
+    } else {
+      for (const p of value.searchFallbackProviders) {
+        if (!SEARCH_PROVIDERS.includes(p as typeof SEARCH_PROVIDERS[number])) {
+          errors.push(`Invalid search fallback provider: ${p}`);
+        }
+      }
+    }
+  }
+
+  if (value.fetchFallbackProviders !== undefined) {
+    if (!Array.isArray(value.fetchFallbackProviders)) {
+      errors.push("fetchFallbackProviders must be an array");
+    } else {
+      for (const p of value.fetchFallbackProviders) {
+        if (p === "auto" || !FETCH_PROVIDERS.includes(p as typeof FETCH_PROVIDERS[number])) {
+          errors.push(`Invalid fetch fallback provider: ${p}`);
+        }
+      }
+    }
   }
 
   validateIntegerRange(value.timeoutMs, 1_000, 60_000, "timeoutMs", errors);
@@ -99,7 +126,17 @@ const manifest: PaperclipPluginManifestV1 = {
   instanceConfigSchema: {
     type: "object",
     additionalProperties: false,
-    required: Object.keys(DEFAULT_CONFIG),
+    required: [
+      "baseUrl",
+      "apiKeyRef",
+      "searchProvider",
+      "fetchProvider",
+      "timeoutMs",
+      "maxSearchResults",
+      "maxContentChars",
+      "allowedDomains",
+      "blockedDomains",
+    ],
     properties: {
       baseUrl: { type: "string", title: "VansRouter Base URL", default: DEFAULT_CONFIG.baseUrl },
       apiKeyRef: {
@@ -120,8 +157,30 @@ const manifest: PaperclipPluginManifestV1 = {
         ],
         default: DEFAULT_CONFIG.apiKeyRef,
       },
-      searchProvider: { type: "string", title: "Search provider", enum: ["searxng"], default: DEFAULT_CONFIG.searchProvider },
-      fetchProvider: { type: "string", title: "Fetch provider", enum: [...FETCH_PROVIDERS], default: DEFAULT_CONFIG.fetchProvider },
+      searchProvider: {
+        type: "string",
+        title: "Search provider",
+        enum: [...SEARCH_PROVIDERS],
+        default: DEFAULT_CONFIG.searchProvider,
+      },
+      fetchProvider: {
+        type: "string",
+        title: "Fetch provider",
+        enum: [...FETCH_PROVIDERS],
+        default: DEFAULT_CONFIG.fetchProvider,
+      },
+      searchFallbackProviders: {
+        type: "array",
+        title: "Search fallback providers",
+        items: { type: "string", enum: [...SEARCH_PROVIDERS] },
+        default: DEFAULT_CONFIG.searchFallbackProviders,
+      },
+      fetchFallbackProviders: {
+        type: "array",
+        title: "Fetch fallback providers",
+        items: { type: "string", enum: ["scrapling", "camofox", "jina-reader"] },
+        default: DEFAULT_CONFIG.fetchFallbackProviders,
+      },
       timeoutMs: { type: "integer", title: "Request timeout, ms", minimum: 1_000, maximum: 60_000, default: DEFAULT_CONFIG.timeoutMs },
       maxSearchResults: { type: "integer", title: "Maximum search results", minimum: 1, maximum: 20, default: DEFAULT_CONFIG.maxSearchResults },
       maxContentChars: { type: "integer", title: "Maximum fetched characters", minimum: 1_000, maximum: 100_000, default: DEFAULT_CONFIG.maxContentChars },
@@ -140,6 +199,7 @@ const manifest: PaperclipPluginManifestV1 = {
         required: ["query"],
         properties: {
           query: { type: "string", minLength: 1, maxLength: 500 },
+          provider: { type: "string", enum: ["auto", ...SEARCH_PROVIDERS], description: "Optional provider override; falls back according to company settings." },
           maxResults: { type: "integer", minimum: 1, maximum: 20 },
           searchType: { type: "string", enum: ["web", "news"] },
           language: { type: "string" },
@@ -158,6 +218,16 @@ const manifest: PaperclipPluginManifestV1 = {
         required: ["url"],
         properties: {
           url: { type: "string" },
+          provider: {
+            type: "string",
+            enum: [...FETCH_PROVIDERS],
+            description: "Extraction provider (scrapling for stealth/fast scraping, camofox for heavy browser anti-bot).",
+          },
+          mode: {
+            type: "string",
+            enum: ["fast", "browser", "stealth"],
+            description: "Scrapling mode (fast for standard pages, stealth for aggressive Cloudflare/WAF).",
+          },
           format: { type: "string", enum: ["markdown", "text"] },
           maxChars: { type: "integer", minimum: 1_000, maximum: 100_000 },
         },

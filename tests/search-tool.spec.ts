@@ -73,4 +73,33 @@ describe("executeWebSearch", () => {
     expect(toolResult.error).toMatch(/authentication failed/i);
     expect(toolResult.content).toContain("Search failed");
   });
+
+  it("allows agent to override search provider and falls back when primary fails", async () => {
+    const calls: SearchRequest[] = [];
+    const fakeClient = {
+      search: async (req: SearchRequest): Promise<SearchResponse> => {
+        calls.push(req);
+        if (req.model === "searxng") {
+          throw new Error("SearXNG upstream timeout");
+        }
+        return {
+          model: "tavily",
+          query: req.query,
+          results: [{ title: "Fallback result", url: "https://example.com/fb", snippet: "ok", position: 1 }],
+        };
+      },
+    };
+
+    const result = await executeWebSearch(
+      fakeClient as any,
+      config,
+      { query: "test query", provider: "searxng" },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(calls.map((c) => c.model)).toEqual(["searxng", "tavily"]);
+    expect(result.content).toContain("Fallback result");
+    expect((result.data as any).provider).toBe("tavily");
+    expect((result.data as any).fallbackFrom).toBe("searxng");
+  });
 });

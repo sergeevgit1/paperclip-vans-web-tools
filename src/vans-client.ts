@@ -9,7 +9,8 @@ export type VansRouterClientOptions = {
 };
 
 export type SearchRequest = {
-  model: "searxng";
+  model: "searxng" | "tavily";
+  provider?: "searxng" | "tavily";
   query: string;
   max_results?: number;
   search_type?: "web" | "news";
@@ -35,6 +36,7 @@ export type SearchResponse = {
 
 export type WebFetchRequest = {
   provider: "scrapling" | "jina-reader" | "camofox";
+  mode?: "fast" | "browser" | "stealth";
   url: string;
   format?: "markdown" | "text";
 };

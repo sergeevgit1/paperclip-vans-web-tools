@@ -18,13 +18,25 @@
 
 - `baseUrl` — адрес VansRouter без `/v1`, query и fragment;
 - `apiKeyRef` — ссылка на секрет Paperclip с API-ключом VansRouter;
-- `searchProvider` — `searxng`;
-- `fetchProvider` — `scrapling`, `jina-reader` или `camofox`;
+- `searchProvider` — `searxng` или `tavily` (по умолчанию `searxng`);
+- `fetchProvider` — `auto`, `scrapling`, `camofox` или `jina-reader` (по умолчанию `scrapling`);
+- `searchFallbackProviders` — массив резервных провайдеров поиска (по умолчанию `["tavily"]`);
+- `fetchFallbackProviders` — массив резервных провайдеров извлечения (по умолчанию `["camofox", "jina-reader"]`);
 - `timeoutMs` — 1–60 секунд;
 - `maxSearchResults` — 1–20;
 - `maxContentChars` — 1000–100000;
 - `allowedDomains` — необязательный список разрешённых публичных доменов;
 - `blockedDomains` — необязательный список запрещённых доменов.
+
+## Возможности агентов
+
+Агенты могут управлять вызовами напрямую через параметры инструментов:
+- `vans_web_search`:
+  - `provider`: `"auto" | "searxng" | "tavily"` (при отказе первого автоматически срабатывает резервный из настроек);
+- `vans_web_fetch`:
+  - `provider`: `"auto" | "scrapling" | "camofox" | "jina-reader"`;
+  - `mode`: `"fast" | "browser" | "stealth"` (для scrapling);
+  - при обнаружении антибота (Cloudflare challenge, 403, 429) плагин автоматически выполняет fallback со `scrapling` на `camofox` (или наоборот) и сообщает об этом в поле `fallbackFrom`.
 
 Значение API-ключа не хранится в manifest/config: плагин разрешает `apiKeyRef` через `ctx.secrets.resolve()` во время вызова инструмента.
 

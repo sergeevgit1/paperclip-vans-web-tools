@@ -18,7 +18,7 @@ describe("plugin manifest", () => {
     expect(manifest).toMatchObject({
       id: "zaruba.vans-web-tools",
       apiVersion: 1,
-      version: "0.1.0",
+      version: "0.2.0",
       entrypoints: { worker: "./dist/worker.js" },
       capabilities: [
         "agent.tools.register",
@@ -44,6 +44,22 @@ describe("plugin manifest", () => {
       ]),
     });
     expect(manifest.instanceConfigSchema).toMatchObject({ additionalProperties: false });
+  });
+
+  it("exposes provider choice, fallback order, and scrapling anti-bot modes", () => {
+    const configProperties = (manifest.instanceConfigSchema?.properties ?? {}) as Record<string, Record<string, any>>;
+    expect(configProperties.searchProvider?.enum).toEqual(["searxng", "tavily"]);
+    expect(configProperties.fetchProvider?.enum).toEqual(["auto", "scrapling", "camofox", "jina-reader"]);
+    expect(configProperties.searchFallbackProviders?.items.enum).toEqual(["searxng", "tavily"]);
+    expect(configProperties.fetchFallbackProviders?.items.enum).toEqual(["scrapling", "camofox", "jina-reader"]);
+
+    const searchTool = manifest.tools?.find((tool) => tool.name === "vans_web_search");
+    const fetchTool = manifest.tools?.find((tool) => tool.name === "vans_web_fetch");
+    const searchParams = searchTool?.parametersSchema.properties as Record<string, Record<string, unknown>>;
+    const fetchParams = fetchTool?.parametersSchema.properties as Record<string, Record<string, unknown>>;
+    expect(searchParams.provider?.enum).toEqual(["auto", "searxng", "tavily"]);
+    expect(fetchParams.provider?.enum).toEqual(["auto", "scrapling", "camofox", "jina-reader"]);
+    expect(fetchParams.mode?.enum).toEqual(["fast", "browser", "stealth"]);
   });
 
   it("accepts an object-shaped secret_ref binding", () => {
@@ -91,9 +107,9 @@ describe("validatePluginConfig", () => {
 
   it("rejects unsupported providers", () => {
     expect(validatePluginConfig({ ...validConfig, searchProvider: "google" }).errors)
-      .toContain("searchProvider must be searxng");
+      .toContain("searchProvider must be one of: searxng, tavily");
     expect(validatePluginConfig({ ...validConfig, fetchProvider: "firecrawl" }).errors)
-      .toContain("fetchProvider must be one of: scrapling, jina-reader, camofox");
+      .toContain("fetchProvider must be one of: auto, scrapling, camofox, jina-reader");
   });
 
   it("rejects unknown fields and invalid domain lists", () => {

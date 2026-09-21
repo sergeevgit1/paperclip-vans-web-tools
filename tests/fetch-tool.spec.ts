@@ -84,4 +84,41 @@ describe("executeWebFetch", () => {
     expect((await executeWebFetch(client as any, config, { url: "https://example.com", format: "html" })).error)
       .toMatch(/format/i);
   });
+
+  it("supports provider override, scrapling mode, and falls back to camofox on bot block", async () => {
+    const calls: WebFetchRequest[] = [];
+    const client = {
+      fetch: async (req: WebFetchRequest): Promise<WebFetchResponse> => {
+        calls.push(req);
+        if (req.provider === "scrapling") {
+          throw new Error("VansRouter request failed (403): Cloudflare bot challenge detected");
+        }
+        return {
+          provider: "camofox",
+          url: req.url,
+          title: "Camofox Bypassed Page",
+          content: { format: "markdown", text: "Clean extracted body after anti-bot bypass", length: 44 },
+        };
+      },
+    };
+
+    const result = await executeWebFetch(
+      client as any,
+      config,
+      {
+        url: "https://example.com/protected",
+        provider: "scrapling",
+        mode: "stealth",
+      },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(calls).toEqual([
+      { provider: "scrapling", mode: "stealth", url: "https://example.com/protected", format: "markdown" },
+      { provider: "camofox", url: "https://example.com/protected", format: "markdown" },
+    ]);
+    expect(result.content).toContain("Camofox Bypassed Page");
+    expect((result.data as any).provider).toBe("camofox");
+    expect((result.data as any).fallbackFrom).toBe("scrapling");
+  });
 });

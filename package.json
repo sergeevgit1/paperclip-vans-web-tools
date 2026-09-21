@@ -1,6 +1,6 @@
 {
   "name": "@zaruba/paperclip-vans-web-tools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "private": true,
   "description": "Paperclip tools for web search and page fetch through VansRouter",
